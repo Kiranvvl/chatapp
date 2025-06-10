@@ -7,31 +7,36 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
+const jwt = require('jsonwebtoken');
+
 const sequelize = require('./config/db');
 const userRouter = require('./routers/user');
 const messageRouter = require('./routers/message');
 const authRouter = require('./routers/auth');
-const jwt = require('jsonwebtoken');
 const Message = require('./models/message');
 
 // Load environment variables
 dotenv.config();
 
-// Initialize Express
 const app = express();
+app.use(helmet()); // Adds security-related HTTP headers
 
-// Security Headers (Should be applied early)
-app.use(helmet());
-
-// Middleware
+// Enable CORS for client app
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = [process.env.BASE_URL, 'http://localhost:3000'];
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+      const allowedOrigins = [
+        process.env.BASE_URL,
+        'http://localhost:3000',
+      ].filter(Boolean);
+
+      // Allow requests with no origin (e.g., mobile apps)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        return callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
@@ -41,7 +46,7 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Session management for OAuth
+// Session setup (for OAuth with Passport)
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'default_secret',
@@ -49,41 +54,33 @@ app.use(
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
-      httpOnly: true, // Ensure the cookie is only accessible via HTTP(S)
-      sameSite: 'lax', // Prevent CSRF attacks
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
 
-// Initialize Passport
+// Initialize Passport.js
 require('./config/passport');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// API Routes
+// Register routers
 app.use('/api', userRouter);
 app.use('/api', messageRouter);
 app.use('/api', authRouter);
 
-// Global Security Headers
-app.use((req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-  next();
-});
-
-// Global Error Handler
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err);
-  res
-    .status(err.status || 500)
-    .json({ message: err.message || 'Internal server error' });
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+  });
 });
 
-// Create an HTTP server
+// Create HTTP server and bind to Socket.IO
 const server = http.createServer(app);
-
-// Initialize Socket.IO
 const io = new Server(server, {
   cors: {
     origin: process.env.BASE_URL || 'http://localhost:3000',
@@ -92,18 +89,20 @@ const io = new Server(server, {
   },
 });
 
-const users = new Map(); // Track users by socket ID
+// Track connected users
+const users = new Map();
 
-// Middleware for authenticating Socket.IO connections
+// Authenticate socket connections with JWT
 io.use((socket, next) => {
   try {
-    const authHeader = socket.handshake.headers.authorization;
-    let token =
+    const token =
       socket.handshake.auth?.token ||
-      (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
+      (socket.handshake.headers.authorization?.startsWith('Bearer ')
+        ? socket.handshake.headers.authorization.split(' ')[1]
+        : null);
 
     if (!token || typeof token !== 'string') {
-      return next(new Error('Authentication error: Token must be a string'));
+      return next(new Error('Authentication error: Invalid or missing token'));
     }
 
     const decoded = jwt.verify(token, process.env.TOKEN_KEY);
@@ -114,12 +113,12 @@ io.use((socket, next) => {
     socket.userId = decoded.id;
     next();
   } catch (error) {
-    console.error('Token verification error:', error.message);
-    return next(new Error('Invalid token'));
+    console.error('Socket authentication error:', error.message);
+    return next(new Error('Authentication failed'));
   }
 });
 
-// Handle Socket.IO Connections
+// Handle socket connections
 io.on('connection', (socket) => {
   const userId = socket.userId;
   if (!userId) return socket.disconnect();
@@ -127,21 +126,28 @@ io.on('connection', (socket) => {
   users.set(socket.id, userId);
   console.log(`User connected: ${userId}`);
 
-  // Handle sending messages
+  // Handle message sending
   socket.on('sendMessage', async (content) => {
     try {
-      if (!content || content.trim() === '') {
+      if (!content || typeof content !== 'string' || content.trim() === '') {
         return socket.emit('messageError', {
           message: 'Message content cannot be empty',
         });
       }
 
-      const newMessage = await Message.create({ userId, content });
+      const newMessage = await Message.create({
+        userId,
+        content: content.trim(),
+      });
 
       io.emit('receiveMessage', newMessage);
     } catch (error) {
       console.error('Error saving message:', error);
-      socket.emit('messageError', { message: 'Error saving message' });
+      socket.emit('messageError', {
+        message: 'Error saving message',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
     }
   });
 
@@ -152,20 +158,20 @@ io.on('connection', (socket) => {
   });
 });
 
-// Authenticate database connection
+// Start the server and connect to the database
 (async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
+
+    const PORT = process.env.PORT || 8000;
+    await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    console.error('Server startup error:', error);
+    process.exit(1);
   }
 })();
-
-// Sync database and start the server
-const PORT = process.env.PORT || 8000;
-sequelize.sync({ alter: process.env.NODE_ENV !== 'production' }).then(() => {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-});

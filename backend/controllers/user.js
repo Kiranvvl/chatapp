@@ -140,44 +140,6 @@ const getProfile = (req, res) => {
   res.json({ user: req.user });
 };
 
-// const verifyEmail = async (req, res, next) => {
-//   try {
-//     const { token } = req.params;
-//     const user = await User.findOne({ where: { verificationToken: token } });
-
-//     if (!user) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid verification token',
-//       });
-//     }
-
-//     if (user.verificationTokenExpiry < Date.now()) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Verification token expired',
-//       });
-//     }
-
-//     user.isVerified = true;
-//     user.verificationToken = null;
-//     user.verificationTokenExpiry = null;
-//     await user.save();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: 'Email verified successfully!',
-//       user: {
-//         id: user.id,
-//         email: user.email,
-//         username: user.username,
-//       },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;

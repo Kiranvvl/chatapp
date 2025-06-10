@@ -13,9 +13,6 @@ const FormToggle = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        {/* <h2 className="text-2xl font-bold mb-6 text-center" aria-live="polite">
-          {isRegistering ? 'Register' : 'Login'}
-        </h2> */}
         {isRegistering ? <RegisterForm /> : <LoginForm />}
 
         <p className="mt-4 text-center text-gray-600">
@@ -27,7 +24,7 @@ const FormToggle = () => {
             onClick={handleToggleForm}
             className="text-blue-600 hover:underline ml-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {isRegistering ? 'Login' : 'Register'}
+            {isRegistering ? 'Sign in' : 'Sign up'}
           </button>
         </p>
 

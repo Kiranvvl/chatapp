@@ -21,7 +21,8 @@ const MessageList = () => {
   const [actionType, setActionType] = useState(null);
   const [updatedMessageContent, setUpdatedMessageContent] = useState('');
 
-  const lastMessageRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (status === 'idle') {
@@ -30,13 +31,16 @@ const MessageList = () => {
   }, [dispatch, status]);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Scroll to bottom when messages change
+    scrollToBottom();
   }, [messages, userId]);
 
-  const handleUpdateMessage = (messageId, updatedMessage) => {
-    dispatch(updateMessage({ messageId, updatedMessage }))
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleUpdateMessage = (messageId, updatedData) => {
+    dispatch(updateMessage({ messageId, updatedMessage: updatedData.message }))
       .unwrap()
       .then(() => {
         console.log('Message updated successfully');
@@ -79,7 +83,15 @@ const MessageList = () => {
     if (actionType === 'delete') {
       handleDeleteMessage(selectedMessage.id);
     } else if (actionType === 'edit') {
-      handleUpdateMessage(selectedMessage.id, updatedMessageContent);
+      if (!selectedMessage.imageUrl && !updatedMessageContent.trim()) {
+        alert('Message content cannot be empty');
+        return;
+      }
+
+      handleUpdateMessage(selectedMessage.id, {
+        message: updatedMessageContent,
+        imageUrl: selectedMessage.imageUrl,
+      });
     }
   };
 
@@ -99,11 +111,13 @@ const MessageList = () => {
     );
 
   return (
-    <div className="p-4 bg-white shadow-md rounded-lg max-w-full sm:max-w-md mx-auto overflow-y-auto h-96">
-      {messages.map((msg, index) => (
+    <div
+      ref={containerRef}
+      className="p-4 bg-white shadow-md rounded-lg max-w-full sm:max-w-md mx-auto overflow-y-auto h-96"
+    >
+      {messages.map((msg) => (
         <div
           key={uuidv4()}
-          ref={index === messages.length - 1 ? lastMessageRef : null}
           className={`mb-3 p-3 rounded-lg border border-gray-200 max-w-[75%] ${
             msg.senderId === userId
               ? 'ml-auto bg-blue-500 text-white'
@@ -134,16 +148,18 @@ const MessageList = () => {
 
           {user && (
             <div className="mt-2 flex gap-2">
-              {/* Show edit button only for text messages sent by current user */}
-              {msg.senderId === userId && msg.message && !msg.imageUrl && (
+              {msg.senderId === userId && msg.message && (
                 <button
                   onClick={() => openModal(msg, 'edit')}
-                  className="text-sm text-white hover:text-gray-200 p-1 rounded transition"
+                  className={`text-sm p-1 rounded transition ${
+                    msg.senderId === userId
+                      ? 'text-white hover:text-gray-200'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 >
                   <Pencil size={18} />
                 </button>
               )}
-              {/* Show delete button for all messages (both sent and received) */}
               <button
                 onClick={() => openModal(msg, 'delete')}
                 className={`text-sm p-1 rounded transition ${
@@ -158,6 +174,7 @@ const MessageList = () => {
           )}
         </div>
       ))}
+      <div ref={messagesEndRef} />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -166,12 +183,35 @@ const MessageList = () => {
               {actionType === 'delete' ? 'Delete Message' : 'Edit Message'}
             </h2>
             {actionType === 'edit' ? (
-              <textarea
-                className="w-full p-2 border border-gray-300 rounded mb-4"
-                value={updatedMessageContent}
-                onChange={(e) => setUpdatedMessageContent(e.target.value)}
-                placeholder="Enter updated message"
-              />
+              <>
+                {!selectedMessage.imageUrl && (
+                  <textarea
+                    className="w-full p-2 border border-gray-300 rounded mb-4"
+                    value={updatedMessageContent}
+                    onChange={(e) => setUpdatedMessageContent(e.target.value)}
+                    placeholder="Edit your message"
+                    required
+                  />
+                )}
+                {selectedMessage.imageUrl && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Image attachment (cannot be modified):
+                    </p>
+                    <img
+                      src={selectedMessage.imageUrl}
+                      alt="Message attachment"
+                      className="max-w-full max-h-32 rounded"
+                    />
+                    <textarea
+                      className="w-full p-2 border border-gray-300 rounded mt-2"
+                      value={updatedMessageContent}
+                      onChange={(e) => setUpdatedMessageContent(e.target.value)}
+                      placeholder="Add or edit caption (optional)"
+                    />
+                  </div>
+                )}
+              </>
             ) : (
               <p>Are you sure you want to delete this message?</p>
             )}

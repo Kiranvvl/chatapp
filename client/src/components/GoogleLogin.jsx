@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { googleLogin } from '../redux/googleWithLoginSlice';
 import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 const GoogleLoginButton = () => {
   const dispatch = useDispatch();
@@ -12,38 +13,53 @@ const GoogleLoginButton = () => {
   );
 
   useEffect(() => {
-    if (token && !loading) {
+    if (token && !loading && !error) {
       navigate('/chatWindow');
     }
-  }, [token, loading, navigate]);
+  }, [token, loading, error, navigate, dispatch]);
 
-  const handleSuccess = ({ credential }) => {
-    if (credential) dispatch(googleLogin(credential));
+  const handleSuccess = async (credentialResponse) => {
+    try {
+      if (credentialResponse.credential) {
+        const decoded = jwtDecode(credentialResponse.credential);
+        console.log('Decoded Google JWT:', decoded);
+        await dispatch(googleLogin(credentialResponse.credential)).unwrap();
+      }
+    } catch (err) {
+      console.error('Error handling Google login:', err);
+    }
+  };
+
+  const handleError = () => {
+    console.error('Google Login Failed');
   };
 
   return (
-    <div className=" flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xs sm:maxs-w-sm md:max-w-md text-center">
-        <h2 className="text-xl font-bold mb-4">Login with Google</h2>
+    <div className="flex items-center justify-center p-4 bg-gray-100">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-auto text-center">
+        <h2 className="text-xl font-bold mb-6 text-gray-800">
+          Login with Google
+        </h2>
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-2"></div>
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-4"></div>
             <p className="text-gray-600">Logging in...</p>
           </div>
         ) : (
-          <div className="flex justify-center">
+          <div className="flex justify-center py-2">
             <GoogleLogin
               onSuccess={handleSuccess}
-              onError={() => console.error('Google Login Failed')}
-              size="medium" // or "large" for mobile
-              width="300" // adjust based on container
-              useOneTap // for better mobile experience
+              onError={handleError}
+              size="medium"
+              shape="pill"
+              text="continue_with"
+              theme="filled_blue"
+              auto_select={false}
+              useOneTap={false}
             />
           </div>
         )}
-        {error && (
-          <p className="text-red-500 mt-2 text-sm sm:text-base">{error}</p>
-        )}
+        {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
       </div>
     </div>
   );

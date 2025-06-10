@@ -14,11 +14,11 @@ export const registerUser = createAsyncThunk(
         password,
       });
 
-      if (!response || !response.data || !response.data.user) {
+      if (!response?.data?.user) {
         throw new Error('Invalid server response: User data not found');
       }
 
-      const token = response.data.token; // Ensure token exists
+      const token = response.data.token;
       if (token) {
         setAuthToken(token);
       }
@@ -36,32 +36,6 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-// export const loginUser = createAsyncThunk(
-//   'auth/login',
-//   async ({ email, password }, { dispatch, rejectWithValue }) => {
-//     try {
-//       const response = await axios.post(`${API_BASE}/api/login`, {
-//         email,
-//         password,
-//       });
-
-//       const token = response.data?.token;
-//       const user = response.data?.user;
-
-//       if (!token || !user) {
-//         throw new Error('Invalid server response: Missing token or user data');
-//       }
-
-//       setAuthToken(token);
-//       dispatch(connectSocket());
-//       return { token, user };
-//     } catch (error) {
-//       console.error('Login error:', error.response?.data || error.message);
-//       return rejectWithValue(error.response?.data?.message || 'Login failed');
-//     }
-//   }
-// );
-
 export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password, rememberMe }, { dispatch, rejectWithValue }) => {
@@ -78,12 +52,17 @@ export const loginUser = createAsyncThunk(
         throw new Error('Invalid server response: Missing token or user data');
       }
 
-      setAuthToken(token, rememberMe); // Pass rememberMe here
+      setAuthToken(token, rememberMe);
+      localStorage.setItem('user', JSON.stringify(user)); // Move here for consistency
       dispatch(connectSocket());
+
       return { token, user };
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(
+        error.response?.data?.message ||
+          'Login failed. Please check your credentials.'
+      );
     }
   }
 );
@@ -93,7 +72,6 @@ export const getUser = createAsyncThunk(
   async (userId, { rejectWithValue }) => {
     try {
       const token = getAuthToken();
-
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -104,13 +82,17 @@ export const getUser = createAsyncThunk(
         },
       });
 
-      if (!response || !response.data || !response.data.data) {
+      if (!response?.data?.data) {
         throw new Error('Invalid server response: User data not found');
       }
 
       return response.data.data;
     } catch (error) {
       console.error('Get user error:', error.response?.data || error.message);
+      // Clear auth if token is invalid
+      if (error.response?.status === 401) {
+        clearAuthToken();
+      }
       return rejectWithValue(
         error.response?.data?.message || 'Failed to fetch user'
       );
@@ -118,7 +100,6 @@ export const getUser = createAsyncThunk(
   }
 );
 
-// Add this to your authSlice.js
 export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
@@ -148,7 +129,7 @@ export const resetPassword = createAsyncThunk(
   async ({ token, newPassword }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `${API_BASE}/api/reset-password/${token}`, // Remove the ":token" literal
+        `${API_BASE}/api/reset-password/${token}`,
         { newPassword }
       );
 
@@ -162,7 +143,7 @@ export const resetPassword = createAsyncThunk(
       );
       return rejectWithValue(
         error.response?.data?.message ||
-          'Failed to reset password. Please try again.'
+          'Failed to reset password. The link may have expired.'
       );
     }
   }
@@ -173,13 +154,14 @@ export const verifyEmail = createAsyncThunk(
   async (token, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${API_BASE}/api/verify/${token}`);
-      if (response.data.success) {
-        return response.data; // This should include user data
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Verification failed');
       }
-      throw new Error(response.data.message || 'Verification failed');
+      return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || 'Verification failed'
+        error.response?.data?.message ||
+          'Verification failed. The link may have expired.'
       );
     }
   }
@@ -188,10 +170,13 @@ export const verifyEmail = createAsyncThunk(
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    isAuthenticated: false,
-    user: null,
+    isAuthenticated: !!getAuthToken(),
+    user: localStorage.getItem('user')
+      ? JSON.parse(localStorage.getItem('user'))
+      : null,
     isLoading: false,
     error: null,
+    message: null,
     verificationMessage: null,
     success: false,
   },
@@ -205,8 +190,23 @@ const authSlice = createSlice({
       state.success = false;
       setAuthToken(null); // Clear the token
       localStorage.removeItem('token');
+      localStorage.removeItem('user'); // Also clear user
       sessionStorage.clear();
       clearAuthToken(); // Clear the token from axios headers
+    },
+    initializeAuth(state) {
+      const token = getAuthToken();
+      const user = localStorage.getItem('user')
+        ? JSON.parse(localStorage.getItem('user'))
+        : null;
+
+      state.isAuthenticated = !!(token && user);
+      state.user = user;
+    },
+    clearMessages(state) {
+      state.error = null;
+      state.message = null;
+      state.verificationMessage = null;
     },
   },
   extraReducers: (builder) => {
@@ -214,16 +214,17 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.message = null;
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.user = action.payload.user;
-        state.isAuthenticated = true; // Ensure user is authenticated
+        state.isAuthenticated = true;
         state.verificationMessage = action.payload.message;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'An error occurred';
+        state.error = action.payload || 'Registration failed';
       })
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
@@ -233,10 +234,11 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
+        localStorage.setItem('user', JSON.stringify(action.payload.user)); // Persist user
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'An error occurred';
+        state.error = action.payload || 'Login failed';
       })
       .addCase(getUser.pending, (state) => {
         state.isLoading = true;
@@ -246,14 +248,17 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+        localStorage.setItem('user', JSON.stringify(action.payload)); // Persist user
       })
       .addCase(getUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Failed to fetch user';
+        state.isAuthenticated = false;
       })
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.message = null;
       })
       .addCase(forgotPassword.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -261,11 +266,12 @@ const authSlice = createSlice({
       })
       .addCase(forgotPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'An error occurred';
+        state.error = action.payload || 'Failed to send reset link';
       })
       .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.message = null;
       })
       .addCase(resetPassword.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -273,11 +279,12 @@ const authSlice = createSlice({
       })
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'An error occurred';
+        state.error = action.payload || 'Failed to reset password';
       })
       .addCase(verifyEmail.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.verificationMessage = null;
       })
       .addCase(verifyEmail.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -285,13 +292,16 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.verificationMessage = action.payload.message;
+        if (action.payload.user) {
+          localStorage.setItem('user', JSON.stringify(action.payload.user));
+        }
       })
       .addCase(verifyEmail.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload || 'Verification failed';
       });
   },
 });
 
-export const { logout, initializeAuth } = authSlice.actions;
+export const { logout, initializeAuth, clearMessages } = authSlice.actions;
 export default authSlice.reducer;

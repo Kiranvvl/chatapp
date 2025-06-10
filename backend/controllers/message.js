@@ -102,71 +102,6 @@ const createMessage = async (req, res, next) => {
     });
   }
 };
-// const createMessage = async (req, res, next) => {
-//   try {
-//     const { receiverId, message } = req.body;
-//     const imageFile = req.file;
-
-//     // Validation checks
-//     if (!receiverId) {
-//       return res.status(400).json({ message: 'Receiver ID is required' });
-//     }
-
-//     // Check if we have either message content OR an image
-//     if ((!message || message.trim() === '') && !imageFile) {
-//       return res
-//         .status(400)
-//         .json({ message: 'Message content or image is required' });
-//     }
-
-//     if (!req.user?.id) {
-//       return res
-//         .status(401)
-//         .json({ message: 'Unauthorized - User not authenticated' });
-//     }
-
-//     // Process image if exists
-//     let imageUrl = null;
-//     let imagePublicId = null;
-
-//     if (imageFile) {
-//       // Cloudinary upload
-//       try {
-//         const result = await cloudinary.uploader.upload(imageFile.path, {
-//           folder: 'message_images',
-//           public_id: `msg_${Date.now()}_${imageFile.originalname}`,
-//         });
-//         imageUrl = result.secure_url;
-//         imagePublicId = result.public_id;
-//       } catch (uploadError) {
-//         console.error('Cloudinary upload error:', uploadError);
-//         return res.status(500).json({ message: 'Failed to upload image' });
-//       }
-//     }
-
-//     // Create message
-//     const newMessage = await Message.create({
-//       senderId: req.user.id,
-//       receiverId,
-//       message: message?.trim() || null,
-//       imageUrl,
-//       imagePublicId,
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       message: 'Message created successfully',
-//       data: newMessage,
-//     });
-//   } catch (error) {
-//     console.error('Error creating message:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Internal Server Error',
-//       error: error.message,
-//     });
-//   }
-// };
 
 const getMessage = async (req, res, next) => {
   try {
@@ -233,11 +168,8 @@ const getAllMessagesByUser = async (req, res, next) => {
 const updateMessage = async (req, res, next) => {
   try {
     const { message } = req.body;
-    if (!message || typeof message !== 'string' || message.trim() === '') {
-      return next({ status: 400, message: 'Message content cannot be empty' });
-    }
-
     const existingMessage = await Message.findByPk(req.params.id);
+
     if (!existingMessage) {
       return next({ status: 404, message: 'Message not found' });
     }
@@ -247,15 +179,19 @@ const updateMessage = async (req, res, next) => {
       return next({ status: 403, message: 'Unauthorized action' });
     }
 
-    // Don't allow updating messages with images to text-only
-    if (existingMessage.imageUrl && !req.file) {
-      return next({
-        status: 400,
-        message: 'Cannot convert image message to text message',
-      });
+    // For text messages, ensure content is not empty
+    if (!existingMessage.imageUrl && (!message || message.trim() === '')) {
+      return next({ status: 400, message: 'Message content cannot be empty' });
     }
 
-    existingMessage.message = message.trim();
+    // For image messages, allow empty text updates (just keep the image)
+    if (existingMessage.imageUrl) {
+      existingMessage.message = message?.trim() || '';
+    } else {
+      // For text-only messages, require content
+      existingMessage.message = message.trim();
+    }
+
     await existingMessage.save();
 
     res.status(200).json({
