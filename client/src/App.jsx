@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useLocation, BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useNavigate, useLocation, BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Navbar from './components/NavBar';
 import NotFound from './components/NotFound';
 import { ToastContainer } from 'react-toastify';
@@ -27,7 +27,6 @@ const AppRoutes = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    // If user is authenticated (normal or Google) and on root or /formToggle, redirect to chatWindow
     const isLoggedIn = (isAuthenticated && user) || (googleAuth && googleUser);
     if (isLoggedIn && (location.pathname === '/' || location.pathname === '/formToggle')) {
       navigate('/chatWindow', { replace: true });
@@ -38,7 +37,7 @@ const AppRoutes = () => {
     <>
       <Navbar />
       <Routes>
-        <Route index element={<FormToggle />} />
+        <Route index element={<Navigate to="/formToggle" replace />} />
         <Route path="/formToggle" element={<FormToggle />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
