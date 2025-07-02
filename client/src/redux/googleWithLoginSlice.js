@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { API_BASE } from '../config/apiConfig';
+
+const API_BASE =  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:4000'; 
 
 // Google login action
 export const googleLogin = createAsyncThunk(

@@ -10,11 +10,11 @@ import ChatWindow from './pages/ChatWindow.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import VerifyEmail from './components/VerifyEmail.jsx';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { GoogleClientId } from './config/apiConfig.js';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import { initializeAuth } from './redux/authSlice';
 
+const GoogleClientId =  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_Google_ClientId) || '954484721139-gf4f1ta5m1k4rq4pm63tm0hnu0d7fprr.apps.googleusercontent.com';
 const AppRoutes = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();

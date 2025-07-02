@@ -1,7 +1,7 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import authReducer from './authSlice'; // Import normally
+import authReducer from './authSlice'; 
 import messagesReducer from './messageSlice';
 import socketReducer from './socketSlice';
 import googleWithLoginReducer from './googleWithLoginSlice';

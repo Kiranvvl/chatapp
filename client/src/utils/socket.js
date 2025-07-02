@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
-import { API_BASE } from '../config/apiConfig';
 import { getAuthToken } from './auth';
 
+
+const API_BASE =  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000'; // Fallback to local server if not set
 let socket = null;
 
 export const initializeSocket = (token) => {
