@@ -13,8 +13,12 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import { initializeAuth } from './redux/authSlice';
+import { GOOGLE_CLIENT_ID } from './config/apiConfig.js';
 
-const GoogleClientId =  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_Google_ClientId) || '954484721139-gf4f1ta5m1k4rq4pm63tm0hnu0d7fprr.apps.googleusercontent.com';
+
+// const GoogleClientId =
+//   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_Google_ClientId) ||
+//   (typeof window !== 'undefined' && window._env_ && window._env_.VITE_Google_ClientId);
 const AppRoutes = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -54,7 +58,7 @@ const AppRoutes = () => {
 
 const App = () => {
   return (
-    <GoogleOAuthProvider clientId={GoogleClientId}>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <Router>
         <AppRoutes />
       </Router>

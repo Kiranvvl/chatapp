@@ -1,9 +1,13 @@
 import { io } from 'socket.io-client';
 import { getAuthToken } from './auth';
+import { API_BASE } from '../config/apiConfig';
 
 
-const API_BASE =  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000'; // Fallback to local server if not set
-let socket = null;
+// const API_BASE =
+//   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) ||
+//   (typeof window !== 'undefined' && window._env_ && window._env_.API_BASE) ||
+//   'http://localhost:4000';
+  let socket = null;
 
 export const initializeSocket = (token) => {
   if (socket) return socket;
