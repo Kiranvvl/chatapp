@@ -2,14 +2,10 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { clearAuthToken, getAuthToken, setAuthToken } from '../utils/auth.js';
 import { connectSocket } from './socketSlice.js';
-import { API_BASE } from '../config/apiConfig.js';
 
 
-// const API_BASE =
-//   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) ||
-//   (typeof window !== 'undefined' && window._env_ && window._env_.API_BASE) ||
-  // 'http://localhost:4000';
-  
+const API_BASE = import.meta.env.VITE_API_BASE;
+
   export const registerUser = createAsyncThunk(
   'auth/register',
   async ({ username, email, password }, { rejectWithValue }) => {
