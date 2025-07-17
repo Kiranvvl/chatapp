@@ -1,11 +1,11 @@
+// messageSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { getAuthToken } from '../utils/auth';
 
-
 const API_BASE = import.meta.env.VITE_API_BASE;
 
-  export const fetchMessages = createAsyncThunk(
+export const fetchMessages = createAsyncThunk(
   'messages/fetchMessages',
   async (_, { rejectWithValue, getState }) => {
     try {
@@ -20,7 +20,9 @@ const API_BASE = import.meta.env.VITE_API_BASE;
 
       const { auth } = getState();
       const userId = auth.user?.id;
-      const filteredMessages = response.data.data.filter(
+      // Ensure response.data.data is an array before filtering
+      const allMessages = Array.isArray(response.data.data) ? response.data.data : [];
+      const filteredMessages = allMessages.filter(
         (msg) => msg.senderId === userId || msg.receiverId === userId
       );
 
@@ -133,6 +135,34 @@ export const deleteMessage = createAsyncThunk(
   }
 );
 
+export const searchMessages = createAsyncThunk(
+  'messages/searchMessages',
+  async (searchQuery, { rejectWithValue }) => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue('User is not authenticated.');
+      }
+
+      const response = await axios.get(`${API_BASE}/api/searchmessages`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          query: searchQuery,
+        },
+      });
+
+      return response.data.data; // Assuming your backend returns data in response.data.data
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Error searching messages');
+    }
+  }
+);
+
+
+
+
 const messageSlice = createSlice({
   name: 'messages',
   initialState: {
@@ -140,33 +170,58 @@ const messageSlice = createSlice({
     status: 'idle',
     error: null,
     isUploading: false,
+    searchQuery: '', // New state to hold the current search query
   },
-  reducers: {},
+  reducers: {
+ setSearchQuery: (state, action) => {
+      state.searchQuery = action.payload;
+    },
+    clearSearchResults: (state) => {
+      state.messages = []; // Clear messages when search results are cleared
+      state.status = 'idle';
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchMessages.pending, (state) => {
         state.status = 'loading';
+        state.error = null; // Clear any previous errors
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.messages = action.payload;
+        // Ensure action.payload is an array or default to an empty array
+        state.messages = Array.isArray(action.payload) ? action.payload : [];
+        state.error = null; // Clear error on success
       })
       .addCase(fetchMessages.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        state.messages = []; // Ensure messages is an empty array on failure
       })
       .addCase(sendMessage.pending, (state) => {
         state.isUploading = true;
+        state.error = null;
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        state.messages.push(action.payload);
+        // Ensure messages is an array before pushing
+        if (Array.isArray(state.messages)) {
+          state.messages.push(action.payload);
+        } else {
+          state.messages = [action.payload]; // Initialize if not an array
+        }
         state.isUploading = false;
+        state.error = null;
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.error = action.payload;
         state.isUploading = false;
       })
       .addCase(getMessage.fulfilled, (state, action) => {
+        // Ensure messages is an array before manipulating
+        if (!Array.isArray(state.messages)) {
+          state.messages = [];
+        }
         const index = state.messages.findIndex(
           (msg) => msg.id === action.payload.id
         );
@@ -177,6 +232,10 @@ const messageSlice = createSlice({
         }
       })
       .addCase(updateMessage.fulfilled, (state, action) => {
+        // Ensure messages is an array before manipulating
+        if (!Array.isArray(state.messages)) {
+          state.messages = [];
+        }
         const updatedMessage = action.payload;
         const index = state.messages.findIndex(
           (msg) => msg.id === updatedMessage.id
@@ -186,11 +245,35 @@ const messageSlice = createSlice({
         }
       })
       .addCase(deleteMessage.fulfilled, (state, action) => {
-        state.messages = state.messages.filter(
-          (msg) => msg.id !== action.payload
-        );
-      });
+        // Ensure messages is an array before filtering
+        if (Array.isArray(state.messages)) {
+          state.messages = state.messages.filter(
+            (msg) => msg.id !== action.payload
+          );
+        } else {
+          state.messages = [];
+        }
+
+      })
+  .addCase(searchMessages.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(searchMessages.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.messages = Array.isArray(action.payload) ? action.payload : [];
+        state.error = null;
+      })
+      .addCase(searchMessages.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+        state.messages = [];
+      })
+ 
   },
 });
 
+export const { setSearchQuery, clearSearchResults } = messageSlice.actions;
 export default messageSlice.reducer;
+
+

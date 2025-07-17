@@ -4,13 +4,16 @@ import {
   fetchMessages,
   updateMessage,
   deleteMessage,
+  searchMessages,
+  setSearchQuery,
+  clearSearchResults
 } from '../redux/messageSlice';
 import { v4 as uuidv4 } from 'uuid';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Search, XCircle} from 'lucide-react';
 
 const MessageList = () => {
   const dispatch = useDispatch();
-  const { messages, status, error } = useSelector((state) => state.messages);
+  const { messages, status, error,searchQuery} = useSelector((state) => state.messages);
   const user = useSelector(
     (state) => state.googleWithLogin?.user || state.auth?.user
   );
@@ -20,19 +23,30 @@ const MessageList = () => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [actionType, setActionType] = useState(null);
   const [updatedMessageContent, setUpdatedMessageContent] = useState('');
+ const [localSearchInput, setLocalSearchInput] = useState('');
+
 
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (status === 'idle') {
+    if (status === 'idle' && !searchQuery ) {
       dispatch(fetchMessages());
     }
-  }, [dispatch, status]);
+  }, [dispatch, status, searchQuery]);
+
+ useEffect(() => {
+    // Ensure searchQuery is always treated as a string, even if null/undefined
+    setLocalSearchInput(searchQuery || '');
+  }, [searchQuery]);
+
+
 
   useEffect(() => {
-    // Scroll to bottom when messages change
-    scrollToBottom();
+    // Scroll to bottom when messages change, and only if messages is an array
+    if (Array.isArray(messages)) {
+      scrollToBottom();
+    }
   }, [messages, userId]);
 
   const scrollToBottom = () => {
@@ -45,6 +59,12 @@ const MessageList = () => {
       .then(() => {
         console.log('Message updated successfully');
         setIsModalOpen(false);
+ if (searchQuery) {
+          dispatch(searchMessages(searchQuery));
+        } else {
+          // Otherwise, refetch all messages
+          dispatch(fetchMessages());
+        }
       })
       .catch((error) => {
         console.error('Error updating message:', error);
@@ -57,6 +77,11 @@ const MessageList = () => {
       .then(() => {
         console.log('Message deleted successfully');
         setIsModalOpen(false);
+ if (searchQuery) {
+          dispatch(searchMessages(searchQuery));
+        } else {
+          dispatch(fetchMessages());
+        }
       })
       .catch((error) => {
         console.error('Error deleting message:', error);
@@ -94,6 +119,28 @@ const MessageList = () => {
       });
     }
   };
+const handleSearchChange = (e) => {
+    setLocalSearchInput(e.target.value);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const trimmedQuery = localSearchInput.trim();
+    if (trimmedQuery) {
+      dispatch(setSearchQuery(trimmedQuery));
+      dispatch(searchMessages(trimmedQuery));
+    } else {
+      handleClearSearch();
+    }
+  };
+
+  const handleClearSearch = () => {
+    dispatch(setSearchQuery(''));
+    dispatch(clearSearchResults());
+    setLocalSearchInput('');
+    dispatch(fetchMessages()); // Fetch all messages again
+  };
+
 
   if (status === 'loading')
     return <div className="text-center text-gray-500">Loading...</div>;
@@ -105,17 +152,53 @@ const MessageList = () => {
       </div>
     );
 
-  if (!messages || messages.length === 0)
-    return (
-      <div className="text-center text-gray-500">No messages available</div>
-    );
+  // CRITICAL FIX: Ensure messages is an array before rendering.
+  // If messages is not an array, default to an empty array to prevent map error.
+  const messagesToRender = Array.isArray(messages) ? messages : [];
+
+
 
   return (
     <div
       ref={containerRef}
-      className="p-4 bg-white shadow-md rounded-lg max-w-full sm:max-w-md mx-auto overflow-y-auto h-96"
+      className="p-4 bg-white shadow-md rounded-lg max-w-full sm:max-w-md mx-auto overflow-y-auto h-96 flex flex-col"
     >
-      {messages.map((msg) => (
+
+        <form onSubmit={handleSearchSubmit} className="mb-4 flex items-center">
+        <div className="relative w-full">
+          <input
+            type="text"
+            placeholder="Search messages..."
+            value={localSearchInput} // This is now always a string
+            onChange={handleSearchChange}
+            className="w-full p-2 pr-10 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          />
+          {localSearchInput && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              <XCircle size={20} />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="ml-2 p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          <Search size={20} />
+        </button>
+      </form>
+
+      <div className="flex-1 overflow-y-auto">
+        {messagesToRender.length === 0 && status !== 'loading' && (
+          <div className="text-center text-gray-500">
+            {searchQuery ? 'No messages found matching your search.' : 'No messages available.'}
+          </div>
+        )}
+
+      {messagesToRender.map((msg) => ( // Use messagesToRender here
         <div
           key={uuidv4()}
           className={`mb-3 p-3 rounded-lg border border-gray-200 max-w-[75%] ${
@@ -237,7 +320,8 @@ const MessageList = () => {
         </div>
       )}
     </div>
-  );
-};
-
+  </div>
+)
+}
 export default MessageList;
+
