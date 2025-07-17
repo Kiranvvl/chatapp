@@ -243,11 +243,64 @@ const deleteMessage = async (req, res, next) => {
   }
 };
 
+const searchMessages = async (req, res, next) => {
+  try {
+    const { query, limit = 10, offset = 0 } = req.query;
+
+    if (!req.user?.id) {
+      return next({
+        status: 401,
+        message: 'Unauthorized - User not authenticated',
+      });
+    }
+
+    if (!query || query.trim() === '') {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    const messages = await Message.findAndCountAll({
+      where: {
+        [Op.and]: [
+          {
+            [Op.or]: [{ senderId: req.user.id }, { receiverId: req.user.id }],
+          },
+          {
+            message: {
+              [Op.like]: `%${query}%`, // Case-insensitive partial match
+            },
+          },
+        ],
+      },
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+    });
+
+    res.status(200).json({
+      message: messages.rows.length
+        ? 'Messages retrieved successfully'
+        : 'No messages found matching your query',
+      data: messages.rows,
+      total: messages.count,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+    });
+  } catch (error) {
+    console.error('Error searching messages:', error);
+    next({
+      status: 500,
+      message: 'Internal Server Error',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   createMessage,
   getMessage,
   getAllMessagesByUser,
+  searchMessages,
   updateMessage,
   deleteMessage,
   upload,
-}; 
+};
