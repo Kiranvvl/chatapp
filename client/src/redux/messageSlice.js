@@ -214,16 +214,7 @@ const messageSlice = createSlice({
         state.isUploading = true;
         state.sendError = null;
       })
-      // .addCase(sendMessage.fulfilled, (state, action) => {
-      //   // Ensure messages is an array before pushing
-      //   if (Array.isArray(state.messages)) {
-      //     state.messages.push(action.payload);
-      //   } else {
-      //     state.messages = [action.payload]; // Initialize if not an array
-      //   }
-      //   state.isUploading = false;
-      //   state.sendError = null;
-      // })
+      
       .addCase(sendMessage.fulfilled, (state, action) => {
         // Add the new message to the existing array
         state.messages = [...state.messages, action.payload];
