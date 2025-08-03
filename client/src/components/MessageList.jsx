@@ -110,35 +110,7 @@ const MessageList = () => {
     }
   };
 
- 
-
-  // const handleDeleteMessage = async (messageId) => {
-  //   setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
-
-  //   try {
-  //     await dispatch(deleteMessage(messageId)).unwrap();
-  //     console.log('Message deleted successfully');
-  //     setIsModalOpen(false);
-
-  //     if (searchQuery) {
-  //       await dispatch(searchMessages(searchQuery));
-  //     } else {
-  //       await dispatch(fetchMessages());
-  //     }
-  //   } catch (error) {
-  //     console.error('Error deleting message:', error);
-  //     alert(`Failed to delete message: ${error.message || 'Unknown error'}`);
-  //   } finally {
-  //     setDeletingMessages(prev => {
-  //       const newState = { ...prev };
-  //       delete newState[messageId];
-  //       return newState;
-  //     });
-  //   }
-  // };
-
-
-  const handleDeleteMessage = async (messageId) => {
+ const handleDeleteMessage = async (messageId) => {
   setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
 
   try {
@@ -198,23 +170,6 @@ const MessageList = () => {
     setLocalSearchInput(e.target.value);
   };
 
-  // const handleSearchSubmit = (e) => {
-  //   e.preventDefault();
-  //   const trimmedQuery = localSearchInput.trim();
-  //   if (trimmedQuery) {
-  //     dispatch(setSearchQuery(trimmedQuery));
-  //     dispatch(searchMessages(trimmedQuery));
-  //   } else {
-  //     handleClearSearch();
-  //   }
-  // };
-
-  // const handleClearSearch = () => {
-  //   dispatch(setSearchQuery(''));
-  //   dispatch(clearSearchResults()); // This should reset status to 'idle' and clear messages in slice
-  //   setLocalSearchInput('');
-  //   dispatch(fetchMessages()); // Fetch all messages again after clearing search
-  // };
 
   // In your search form handlers:
 const handleSearchSubmit = (e) => {
@@ -358,30 +313,7 @@ const handleClearSearch = () => {
               </p>
             )}
 
-            {/* {user && (
-              <div className="mt-2 flex gap-2">
-                {msg.senderId === userId && (msg.message || msg.imageUrl) && ( // Show edit if message or image exists
-                  <button
-                    onClick={() => openModal(msg, 'edit')}
-                    className={`text-sm p-1 rounded transition ${msg.senderId === userId
-                        ? 'text-white hover:text-gray-200'
-                        : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    <Pencil size={18} />
-                  </button>
-                )}
-                <button
-                  onClick={() => openModal(msg, 'delete')}
-                  className={`text-sm p-1 rounded transition ${msg.senderId === userId
-                      ? 'text-red-300 hover:text-red-200'
-                      : 'text-red-500 hover:text-red-700'
-                    }`}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            )} */}
+          
 
             {user && (
               <div className="mt-2 flex gap-2">
