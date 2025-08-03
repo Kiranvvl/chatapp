@@ -262,19 +262,7 @@ const messageSlice = createSlice({
       .addCase(updateMessage.rejected, (state, action) => {
         state.updateError = action.payload;
       })
-      // .addCase(deleteMessage.fulfilled, (state, action) => {
-      //   console.log('Deleting message with ID:', action.payload);
-      //   console.log('Current messages before delete:', state.messages);
-      //   // Ensure messages is an array before filtering
-      //   if (Array.isArray(state.messages)) {
-      //     state.messages = state.messages.filter(
-      //       (msg) => msg.id !== action.payload
-      //     );
-      //   } else {
-      //     state.messages = [];
-      //   }
-      //   state.deleteError = null; // Clear delete error on success
-      // })
+      
 
       .addCase(deleteMessage.fulfilled, (state, action) => {
         // Filter out the deleted message without re-fetching
