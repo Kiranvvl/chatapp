@@ -11,13 +11,11 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  getProfile,
 } = require('../controllers/user');
 const passport = require('passport');
 
 router.post('/register', register);
 router.post('/login', login);
-router.get('/profile', getProfile);
 router.get('/verify/:token', verifyEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);

@@ -136,9 +136,7 @@ const login = async (req, res, next) => {
   }
 };
 
-const getProfile = (req, res) => {
-  res.json({ user: req.user });
-};
+
 
 const verifyEmail = async (req, res, next) => {
   try {
@@ -275,30 +273,100 @@ const updateUser = async (req, res, next) => {
     }
 
     if (!req.user || userId !== req.user.id) {
-      return res.status(401).json({ message: 'You are not authorized' });
+      return res.status(401).json({ message: 'You are not authorized to update this user' });
     }
 
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const validFields = ['username', 'email'];
+const { username, email, password } = req.body;
     const updates = {};
-    for (const field of validFields) {
-      if (req.body[field]) {
-        updates[field] = req.body[field];
+
+    // Validate and prepare updates
+    if (username) {
+      if (username.length < 3 || username.length > 30) {
+        return res.status(400).json({ message: 'Username must be between 3 and 30 characters' });
+      }
+      updates.username = username;
+    }
+
+    if (email) {
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+      }
+      
+      // Check if email is being changed to a different one
+      if (email !== user.email) {
+        const emailExists = await User.findOne({ where: { email } });
+        if (emailExists) {
+          return res.status(400).json({ message: 'Email already in use by another account' });
+        }
+        updates.email = email;
+        updates.isVerified = false; // Require re-verification if email changes
       }
     }
 
+    if (password) {
+      if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+      }
+      updates.password = await bcrypt.hash(password, 10);
+    }
+
+    // If no valid updates were provided
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid updates provided' });
+    }
+
     await user.update(updates);
+
+    // If email was changed, send verification email
+    if (updates.email && !updates.isVerified) {
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationTokenExpiry = generateTokenExpiry();
+      
+      await user.update({
+        verificationToken,
+        verificationTokenExpiry
+      });
+
+      const verificationLink = `${process.env.BASE_URL}/Verify-Email/${verificationToken}`;
+      
+      try {
+        await transporter.sendMail({
+          from: `"Chat App" <${process.env.USER_EMAIL}>`,
+          to: updates.email,
+          subject: 'Verify Your Updated Email',
+          html: `<p>Click <a href="${verificationLink}">here</a> to verify your new email address.</p>`,
+        });
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+      }
+    }
+
+    // Return updated user data (excluding sensitive fields)
+    const userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      };
+
     res.status(200).json({
       success: true,
-      message: 'User data has been updated successfully',
-      userData: user,
+      message: 'User updated successfully',
+      userData,
+      ...(updates.email && !updates.isVerified ? { 
+        warning: 'Verification email sent to new email address' 
+      } : {})
     });
+
   } catch (error) {
+    console.error('Update user error:', error);
     next(error);
   }
 };
+
 
 const getdata = async (req, res, next) => {
   try {
@@ -368,5 +436,4 @@ module.exports = {
   getdata,
   getAllUsers,
   deletedata,
-  getProfile,
 };

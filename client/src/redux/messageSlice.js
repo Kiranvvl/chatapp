@@ -128,7 +128,7 @@ export const deleteMessage = createAsyncThunk(
         },
       });
 
-      return messageId;
+      return messageId; // Assuming your backend returns the deleted message ID
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting message');
     }
@@ -170,16 +170,28 @@ const messageSlice = createSlice({
     status: 'idle',
     error: null,
     isUploading: false,
+    sendError: null,    // specific error for send message
+    updateError: null,  // specific error for update message
+    deleteError: null,  // specific error for delete message
     searchQuery: '', // New state to hold the current search query
   },
   reducers: {
- setSearchQuery: (state, action) => {
+    setSearchQuery: (state, action) => {
       state.searchQuery = action.payload;
     },
     clearSearchResults: (state) => {
       state.messages = []; // Clear messages when search results are cleared
       state.status = 'idle';
       state.error = null;
+      state.sendError = null;
+      state.updateError = null;
+      state.deleteError = null;
+    },
+    clearErrors: (state) => {
+      state.error = null;
+      state.sendError = null;
+      state.updateError = null;
+      state.deleteError = null;
     },
   },
   extraReducers: (builder) => {
@@ -188,34 +200,41 @@ const messageSlice = createSlice({
         state.status = 'loading';
         state.error = null; // Clear any previous errors
       })
+
       .addCase(fetchMessages.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // Ensure action.payload is an array or default to an empty array
-        state.messages = Array.isArray(action.payload) ? action.payload : [];
-        state.error = null; // Clear error on success
+        state.messages = action.payload; // payload is already filtered
+        state.error = null;
       })
       .addCase(fetchMessages.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
-        state.messages = []; // Ensure messages is an empty array on failure
       })
       .addCase(sendMessage.pending, (state) => {
         state.isUploading = true;
-        state.error = null;
+        state.sendError = null;
       })
+      // .addCase(sendMessage.fulfilled, (state, action) => {
+      //   // Ensure messages is an array before pushing
+      //   if (Array.isArray(state.messages)) {
+      //     state.messages.push(action.payload);
+      //   } else {
+      //     state.messages = [action.payload]; // Initialize if not an array
+      //   }
+      //   state.isUploading = false;
+      //   state.sendError = null;
+      // })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        // Ensure messages is an array before pushing
-        if (Array.isArray(state.messages)) {
-          state.messages.push(action.payload);
-        } else {
-          state.messages = [action.payload]; // Initialize if not an array
-        }
+        // Add the new message to the existing array
+        state.messages = [...state.messages, action.payload];
         state.isUploading = false;
-        state.error = null;
+        state.sendError = null;
       })
+
       .addCase(sendMessage.rejected, (state, action) => {
-        state.error = action.payload;
         state.isUploading = false;
+        state.sendError = action.payload;
+
       })
       .addCase(getMessage.fulfilled, (state, action) => {
         // Ensure messages is an array before manipulating
@@ -231,6 +250,10 @@ const messageSlice = createSlice({
           state.messages.push(action.payload);
         }
       })
+      .addCase(getMessage.rejected, (state, action) => {
+        state.error = action.payload;
+        console.error('Error fetching message:', action.payload);
+      })
       .addCase(updateMessage.fulfilled, (state, action) => {
         // Ensure messages is an array before manipulating
         if (!Array.isArray(state.messages)) {
@@ -243,19 +266,34 @@ const messageSlice = createSlice({
         if (index !== -1) {
           state.messages[index] = updatedMessage;
         }
+        state.updateError = null; // Clear update error on success
       })
-      .addCase(deleteMessage.fulfilled, (state, action) => {
-        // Ensure messages is an array before filtering
-        if (Array.isArray(state.messages)) {
-          state.messages = state.messages.filter(
-            (msg) => msg.id !== action.payload
-          );
-        } else {
-          state.messages = [];
-        }
+      .addCase(updateMessage.rejected, (state, action) => {
+        state.updateError = action.payload;
+      })
+      // .addCase(deleteMessage.fulfilled, (state, action) => {
+      //   console.log('Deleting message with ID:', action.payload);
+      //   console.log('Current messages before delete:', state.messages);
+      //   // Ensure messages is an array before filtering
+      //   if (Array.isArray(state.messages)) {
+      //     state.messages = state.messages.filter(
+      //       (msg) => msg.id !== action.payload
+      //     );
+      //   } else {
+      //     state.messages = [];
+      //   }
+      //   state.deleteError = null; // Clear delete error on success
+      // })
 
+      .addCase(deleteMessage.fulfilled, (state, action) => {
+        // Filter out the deleted message without re-fetching
+        state.messages = state.messages.filter(msg => msg.id !== action.payload);
+        state.deleteError = null;
       })
-  .addCase(searchMessages.pending, (state) => {
+      .addCase(deleteMessage.rejected, (state, action) => {
+        state.deleteError = action.payload;
+      })
+      .addCase(searchMessages.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
@@ -269,7 +307,7 @@ const messageSlice = createSlice({
         state.error = action.payload;
         state.messages = [];
       })
- 
+
   },
 });
 

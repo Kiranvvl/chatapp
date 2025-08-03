@@ -18,8 +18,16 @@ const Message = require('./models/message');
 // Load environment variables
 dotenv.config();
 
+
 const app = express();
-app.use(helmet()); // Adds security-related HTTP headers
+
+app.use(
+    helmet({
+        crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+    })
+);
+
+// app.use(helmet()); // Adds security-related HTTP headers
 
 // Enable CORS for client app
 app.use(

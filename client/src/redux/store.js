@@ -1,16 +1,20 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import authReducer from './authSlice'; 
+import authReducer from './authSlice';
 import messagesReducer from './messageSlice';
 import socketReducer from './socketSlice';
 import googleWithLoginReducer from './googleWithLoginSlice';
+import autoMergeLevel2 from 'redux-persist/lib/stateReconciler/autoMergeLevel2';
 
 // Persist Configurations
 const persistConfig = {
   key: 'root',
   storage,
-  blacklist: ['socket', 'googleWithLogin'], // Exclude socket from persistence
+  blacklist: ['socket', 'googleWithLogin'], // Do not persist socket and googleWithLogin state
+  stateReconciler: autoMergeLevel2,
+  writeFailHandler: (error) => console.error('Storage write error:', error),
+  debug: true
 };
 
 const authPersistConfig = {

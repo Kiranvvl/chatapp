@@ -22,12 +22,12 @@ const Navbar = () => {
   const isAuthenticated = regularAuth || googleAuth;
   const user = regularUser || googleUser;
 
-  const handleLogout = () => {
-    dispatch(logout());
-    dispatch(googleLogout());
-    navigate('/formToggle', { replace: true });
-    setIsMobileMenuOpen(false);
-  };
+  // const handleLogout = () => {
+  //   dispatch(logout());
+  //   dispatch(googleLogout());
+  //   navigate('/formToggle', { replace: true });
+  //   setIsMobileMenuOpen(false);
+  // };
 
   return (
     <nav className="bg-gradient-to-r from-blue-700 via-blue-800 to-blue-900 text-white shadow-lg fixed w-full top-0 z-50">
@@ -45,12 +45,12 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <Link to="/chatWindow" className="hover:text-gray-200">
+              {/* <Link to="/chatWindow" className="hover:text-gray-200">
                 Chat
-              </Link>
-              <button onClick={handleLogout} className="hover:text-gray-200">
+              </Link> */}
+              {/* <button onClick={handleLogout} className="hover:text-gray-200">
                 Logout
-              </button>
+              </button> */}
               {user?.username && (
                 <span className="text-sm ml-2">Hello, {user.username}</span>
               )}
