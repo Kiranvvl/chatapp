@@ -153,7 +153,7 @@ export const searchMessages = createAsyncThunk(
         },
       });
 
-      return response.data.data; // Assuming your backend returns data in response.data.data
+      return response.data.data || []; // Assuming your backend returns data in response.data.data
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error searching messages');
     }

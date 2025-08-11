@@ -60,10 +60,12 @@ const MessageList = () => {
 
     // Only fetch messages if status is 'idle' AND no search query is active
     // 'idle' typically means no operation is pending/in progress.
-    if (status === 'idle' && !searchQuery && messages.length === 0) {
+    if (!searchQuery) {
       dispatch(fetchMessages());
     }
-  }, [dispatch, status, searchQuery, messages.length]);
+  }, [dispatch,searchQuery]);
+
+
 
   useEffect(() => {
     setLocalSearchInput(searchQuery || '');
@@ -187,10 +189,7 @@ const handleClearSearch = () => {
   dispatch(setSearchQuery(''));
   dispatch(clearSearchResults());
   setLocalSearchInput('');
-  // Only fetch if we're not already loading and have no messages
-  if (status === 'idle' && messages.length === 0) {
-    dispatch(fetchMessages());
-  }
+ 
 };
 
 
