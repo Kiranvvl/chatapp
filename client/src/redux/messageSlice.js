@@ -5,6 +5,34 @@ import { getAuthToken } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
+// export const fetchMessages = createAsyncThunk(
+//   'messages/fetchMessages',
+//   async (_, { rejectWithValue, getState }) => {
+//     try {
+//       const token = getAuthToken();
+//       if (!token) throw new Error('User does not exist');
+
+//       const response = await axios.get(`${API_BASE}/api/getallmessage`, {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//         },
+//       });
+
+//       const { auth } = getState();
+//       const userId = auth.user?.id;
+//       // Ensure response.data.data is an array before filtering
+//       const allMessages = Array.isArray(response.data.data) ? response.data.data : [];
+//       const filteredMessages = allMessages.filter(
+//         (msg) => msg.senderId === userId || msg.receiverId === userId
+//       );
+
+//       return filteredMessages;
+//     } catch (error) {
+//       return rejectWithValue(error.response?.data || 'Error fetching messages');
+//     }
+//   }
+// );
+
 export const fetchMessages = createAsyncThunk(
   'messages/fetchMessages',
   async (_, { rejectWithValue, getState }) => {
@@ -18,15 +46,9 @@ export const fetchMessages = createAsyncThunk(
         },
       });
 
-      const { auth } = getState();
-      const userId = auth.user?.id;
-      // Ensure response.data.data is an array before filtering
-      const allMessages = Array.isArray(response.data.data) ? response.data.data : [];
-      const filteredMessages = allMessages.filter(
-        (msg) => msg.senderId === userId || msg.receiverId === userId
-      );
-
-      return filteredMessages;
+      // Return all messages without filtering here
+      // Let the component handle filtering based on user
+      return Array.isArray(response.data.data) ? response.data.data : [];
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching messages');
     }

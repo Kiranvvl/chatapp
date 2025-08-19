@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchMessages,
@@ -26,10 +26,22 @@ const MessageList = () => {
   const dispatch = useDispatch();
 
   const { messages, status, error, searchQuery, sendError, updateError, deleteError } = useSelector((state) => state.messages);
+  const user = useSelector((state) => state.googleWithLogin?.user || state.auth?.user);
+  const userId = user?.id;
+
+  const filteredMessages = useMemo(() => {
+    if (!userId || !Array.isArray(messages)) return [];
+    
+    return messages.filter(
+      (msg) => msg.senderId === userId || msg.receiverId === userId
+    );
+  }, [messages, userId]);
+
   // Define messagesToRender once and use it consistently
-  const messagesToRender = Array.isArray(messages)
-    ? [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  const messagesToRender = Array.isArray(filteredMessages)
+    ? [...filteredMessages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
     : [];
+
   useEffect(() => {
     if (sendError) {
       console.error("Send Error:", sendError);
@@ -42,15 +54,6 @@ const MessageList = () => {
     }
   }, [sendError, updateError, deleteError]);
 
-
-
-  const user = useSelector(
-    (state) => state.googleWithLogin?.user || state.auth?.user
-  );
-
-
-  const userId = user?.id; // Define userId here, after user is determined
-
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
@@ -58,14 +61,9 @@ const MessageList = () => {
       return;
     }
 
-    // Only fetch messages if status is 'idle' AND no search query is active
-    // 'idle' typically means no operation is pending/in progress.
-    if (!searchQuery) {
-      dispatch(fetchMessages());
-    }
-  }, [dispatch,searchQuery]);
-
-
+    // Always fetch messages initially, regardless of searchQuery
+    dispatch(fetchMessages());
+  }, [dispatch]);
 
   useEffect(() => {
     setLocalSearchInput(searchQuery || '');
@@ -90,10 +88,6 @@ const MessageList = () => {
     }, 50); // Adjust delay if needed (e.g., 50-200ms)
   };
 
-
-
-
-
   const handleUpdateMessage = async (messageId, updatedData) => {
     try {
       await dispatch(updateMessage({ messageId, updatedMessage: updatedData.message })).unwrap();
@@ -112,29 +106,29 @@ const MessageList = () => {
     }
   };
 
- const handleDeleteMessage = async (messageId) => {
-  setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
+  const handleDeleteMessage = async (messageId) => {
+    setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
 
-  try {
-    await dispatch(deleteMessage(messageId)).unwrap();
-    console.log('Message deleted successfully');
-    setIsModalOpen(false);
-    
-    // Only refresh if in search mode to maintain search results
-    if (searchQuery) {
-      await dispatch(searchMessages(searchQuery));
+    try {
+      await dispatch(deleteMessage(messageId)).unwrap();
+      console.log('Message deleted successfully');
+      setIsModalOpen(false);
+      
+      // Only refresh if in search mode to maintain search results
+      if (searchQuery) {
+        await dispatch(searchMessages(searchQuery));
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert(`Failed to delete message: ${error.message || 'Unknown error'}`);
+    } finally {
+      setDeletingMessages(prev => {
+        const newState = { ...prev };
+        delete newState[messageId];
+        return newState;
+      });
     }
-  } catch (error) {
-    console.error('Error deleting message:', error);
-    alert(`Failed to delete message: ${error.message || 'Unknown error'}`);
-  } finally {
-    setDeletingMessages(prev => {
-      const newState = { ...prev };
-      delete newState[messageId];
-      return newState;
-    });
-  }
-};
+  };
 
   const openModal = (message, type) => {
     setSelectedMessage(message);
@@ -410,5 +404,3 @@ const handleClearSearch = () => {
   );
 }
 export default MessageList;
-
-
