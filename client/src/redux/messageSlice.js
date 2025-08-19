@@ -5,34 +5,6 @@ import { getAuthToken } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
-// export const fetchMessages = createAsyncThunk(
-//   'messages/fetchMessages',
-//   async (_, { rejectWithValue, getState }) => {
-//     try {
-//       const token = getAuthToken();
-//       if (!token) throw new Error('User does not exist');
-
-//       const response = await axios.get(`${API_BASE}/api/getallmessage`, {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
-//       });
-
-//       const { auth } = getState();
-//       const userId = auth.user?.id;
-//       // Ensure response.data.data is an array before filtering
-//       const allMessages = Array.isArray(response.data.data) ? response.data.data : [];
-//       const filteredMessages = allMessages.filter(
-//         (msg) => msg.senderId === userId || msg.receiverId === userId
-//       );
-
-//       return filteredMessages;
-//     } catch (error) {
-//       return rejectWithValue(error.response?.data || 'Error fetching messages');
-//     }
-//   }
-// );
-
 export const fetchMessages = createAsyncThunk(
   'messages/fetchMessages',
   async (_, { rejectWithValue, getState }) => {
@@ -189,6 +161,7 @@ const messageSlice = createSlice({
   name: 'messages',
   initialState: {
     messages: [],
+    filteredMessages: [], // Add this new state
     status: 'idle',
     error: null,
     isUploading: false,
